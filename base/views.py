@@ -5,28 +5,40 @@ from django.contrib.messages import info, success, warning, error
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from .models import Room, Topic 
+from .models import Room, Topic, Messages
 from .forms import RoomForm
+from django.contrib.auth.forms import UserCreationForm
 
+
+def userProfile(request,pk):
+    user = User.objects.get(id=pk)
+    rooms = user.room_set.all()
+    room_messages = user.messages_set.all()
+    topics = Topic.objects.all()
+    context = {'user': user, 'rooms': rooms,
+               'room_messages': room_messages, 'topics': topics}
+    return render(request,'base/user_profile.html',context)
 def logoutUser(request):
     logout(request)
     return redirect('login')
 
 def registerPage(request):
     page = 'register'
-    # form = MyUserCreationForm()
+    form = UserCreationForm()
+    #form = MyUserCreationForm()
 
-    # if request.method == 'POST':
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
     #     form = MyUserCreationForm(request.POST)
-    #     if form.is_valid():
-    #         user = form.save(commit=False)
-    #         user.username = user.username.lower()
-    #         user.save()
-    #         login(request, user)
-    #         return redirect('home')
-    #     else:
-    #         error(request, 'An error occurred during registration')
-    context = {'page':page}
+        if form.is_valid():
+           user = form.save(commit=False)
+           user.username = user.username.lower()
+           user.save()
+           login(request, user)
+           return redirect('home')
+        else:
+            error(request, 'An error occurred during registration')
+    context = {'form':form}
     return render(request,'base/login_register.html',context)
 
 def loginPage(request):
@@ -35,7 +47,7 @@ def loginPage(request):
       return redirect('home')
  
     if request.method == 'POST':
-        username = request.POST.get('username')
+        username = request.POST.get('username').lower()
         password = request.POST.get('password')
 
         try:
@@ -62,13 +74,23 @@ def home(request):
      Q(description__icontains=q))
     topics = Topic.objects.all()
     room_count = rooms.count()
-    context = {'rooms':rooms,'topics':topics,'room_count':room_count}
+    room_messages = Messages.objects.filter(Q(room__topic__name__icontains=q))
+    context = {'rooms':rooms,'topics':topics,'room_count':room_count,'room_messages':room_messages}
     return  render(request,'base/home.html', context)
 
 def room(request,pk):
     room = Room.objects.get(id=pk)
-   
-    context = {'room':room}
+    room_messages = room.messages_set.all()
+    participants = room.participants.all()
+    if request.method == 'POST':
+        message = Messages.objects.create(
+            user = request.user,
+            room = room,
+            body = request.POST.get('body')
+        )
+        room.participants.add(request.user)
+        return redirect('room',pk=room.id)
+    context = {'room':room,'room_messages':room_messages,'participants':participants}
     return render(request,'base/room.html',context)
 
 @login_required(login_url='login')
@@ -78,7 +100,9 @@ def createRoom(request):
     if request.method == 'POST':
         form = RoomForm(request.POST)
         if form.is_valid():
-            form.save()
+            room = form.save(commit=False)
+            room = request.user
+            room.save()
             return redirect('home')
     return render(request,'base/room_form.html',context)  
 
@@ -104,3 +128,11 @@ def deleteRoom(request,pk):
         room.delete()
         return redirect('home')
     return render(request,'base/delete.html',{'obj':room})
+
+@login_required(login_url='login')
+def deleteMessage(request,pk):
+    message = Messages.objects.get(id=pk)
+    if request.method == 'POST':
+        message.delete()
+        return redirect('home')
+    return render(request,'base/delete.html',{'obj':message})
