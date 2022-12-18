@@ -19,7 +19,8 @@
         </div>
         {% if room.host == request.user %}
         <div class="room__topRight">
-          <a >
+          <a  href="{% url 'update-room' room.id %}">
+            
             <svg enable-background="new 0 0 24 24" height="32" viewBox="0 0 24 24" width="32"
               xmlns="http://www.w3.org/2000/svg">
               <title>edit</title>
@@ -112,12 +113,14 @@
         </div>
 
       </div>
+      {% if request.user.is_authenticated%}
       <div class="room__message">
         <form action="" method="POST">
           {% csrf_token %}
           <input name="body" placeholder="Write your message here..." />
         </form>
       </div>
+      {%endif%}
     </div>
     <!-- Room End -->
 

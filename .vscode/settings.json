@@ -1,8 +1,12 @@
 {
     "cSpell.words": [
+        "corsheaders",
         "gunicorn",
         "studybud",
         "whitenoise",
         "wsgi"
+    ],
+    "python.analysis.extraPaths": [
+        "./django-rest-framework"
     ]
 }
